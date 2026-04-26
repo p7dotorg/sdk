@@ -70,9 +70,14 @@ const make = Effect.gen(function* () {
 
   const buildGraph = (seedArxivId: string, _depth = 1) =>
     Effect.gen(function* () {
-      const [seed, refsData, citationsData] = yield* Effect.all(
-        [fetchPaper(seedArxivId), fetchRefs(seedArxivId), fetchCitations(seedArxivId)],
-        { concurrency: 3 }
+      // Sequential to avoid S2 rate limits (1 req/sec unauthenticated)
+      const refsData = yield* fetchRefs(seedArxivId)
+      const citationsData = yield* fetchCitations(seedArxivId)
+      const seed = yield* fetchPaper(seedArxivId).pipe(
+        Effect.orElseSucceed((): S2Paper => ({
+          paperId: seedArxivId,
+          title: refsData[0]?.citedPaper?.title ?? seedArxivId,
+        }))
       )
 
       const seedPaper = s2ToPaper(seed, seedArxivId)
