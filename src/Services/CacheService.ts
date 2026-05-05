@@ -29,7 +29,7 @@ export class CacheService extends Context.Service<CacheService, CacheServiceShap
   "p7/CacheService"
 ) {}
 
-const make = Effect.gen(function* () {
+export const makeCacheService = Effect.gen(function* () {
   const fs = yield* FileSystem.FileSystem
 
   const dir = (id: string) => path.join(CACHE_DIR, id)
@@ -103,6 +103,6 @@ const make = Effect.gen(function* () {
   return { get, set, list, clear }
 })
 
-export const CacheServiceLive = Layer.effect(CacheService)(make).pipe(
+export const CacheServiceLive = Layer.effect(CacheService)(makeCacheService).pipe(
   Layer.provide(BunFileSystem.layer)
 )

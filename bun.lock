@@ -11,6 +11,7 @@
       },
       "devDependencies": {
         "@effect/platform-node": "4.0.0-beta.58",
+        "@effect/vitest": "4.0.0-beta.58",
         "@types/bun": "latest",
         "typescript": "^5",
         "vitest": "^3.2.4",
@@ -27,6 +28,8 @@
     "@effect/platform-node": ["@effect/platform-node@4.0.0-beta.58", "", { "dependencies": { "@effect/platform-node-shared": "^4.0.0-beta.58", "mime": "^4.1.0", "undici": "^8.0.2" }, "peerDependencies": { "effect": "^4.0.0-beta.58", "ioredis": "^5.7.0" } }, "sha512-lDgj/RXQTbZQAWg/Mkpy04sB6wlWyuC9SGxdqjgKj2tBZFihrSjf90CfRhlbsy2BMk2WNNgZsebEHSqSWgUifQ=="],
 
     "@effect/platform-node-shared": ["@effect/platform-node-shared@4.0.0-beta.60", "", { "dependencies": { "@types/ws": "^8.18.1", "ws": "^8.20.0" }, "peerDependencies": { "effect": "^4.0.0-beta.60" } }, "sha512-I/4g1B9Nb2qeUAJmRiEnd3bFOx2LU3FaBGi3O6iUGlRe+MAReqYP+1JBntLoCBkH8kVUM2viQRZONzopb/8Bzw=="],
+
+    "@effect/vitest": ["@effect/vitest@4.0.0-beta.58", "", { "peerDependencies": { "effect": "^4.0.0-beta.58", "vitest": "^3.0.0 || ^4.0.0" } }, "sha512-smbZFxaznzlvbzsfq8r8lCZy6Ym3aAMv5LxmuZSm2DMcyL07jcg0qOrs7FCGvqneUvCEKkkZ8tkcEporBduH7A=="],
 
     "@esbuild/aix-ppc64": ["@esbuild/aix-ppc64@0.27.7", "", { "os": "aix", "cpu": "ppc64" }, "sha512-EKX3Qwmhz1eMdEJokhALr0YiD0lhQNwDqkPYyPhiSwKrh7/4KRjQc04sZ8db+5DVVnZ1LmbNDI1uAMPEUBnQPg=="],
 

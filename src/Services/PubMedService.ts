@@ -26,7 +26,7 @@ export class PubMedService extends Context.Service<PubMedService, PubMedServiceS
   "p7/PubMedService"
 ) {}
 
-const formatArticle = (article: PubMedArticle): string => {
+export const formatPubMedArticle = (article: PubMedArticle): string => {
   const lines = [
     `# ${article.title}`,
     "",
@@ -69,7 +69,7 @@ const SummaryResponseSchema = Schema.Struct({
 // Implementation
 // ---------------------------------------------------------------------------
 
-const make = Effect.gen(function* () {
+export const makePubMedService = Effect.gen(function* () {
   const http = yield* HttpClient.HttpClient
 
   const searchDetailed = (query: string, opts: SearchOptions = {}) =>
@@ -187,7 +187,7 @@ const make = Effect.gen(function* () {
   return { search, searchDetailed, get } satisfies PubMedServiceShape
 })
 
-export const PubMedServiceLive = Layer.effect(PubMedService)(make).pipe(
+export const PubMedServiceLive = Layer.effect(PubMedService)(makePubMedService).pipe(
   Layer.provide(FetchHttpClient.layer)
 )
 
@@ -201,7 +201,7 @@ export const PubMedPaperSourceServiceLive = Layer.effect(PaperSourceAdapter)(Eff
     ),
     format: PaperSourceContent.$match({
       Markdown: ({ markdown }) => Effect.succeed(markdown),
-      PubMedArticle: ({ article }) => Effect.succeed(formatArticle(article)),
+      PubMedArticle: ({ article }) => Effect.succeed(formatPubMedArticle(article)),
     }),
   }
 }))

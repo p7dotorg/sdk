@@ -20,7 +20,7 @@ export class Paper7 extends Context.Service<Paper7, Paper7Shape>()(
   "p7/Paper7"
 ) {}
 
-const make = Effect.gen(function* () {
+export const makePaper7 = Effect.gen(function* () {
   const sources = yield* PaperSourceService
   const s2 = yield* S2Service
   const cache = yield* CacheService
@@ -37,7 +37,7 @@ const make = Effect.gen(function* () {
   } satisfies Paper7Shape
 })
 
-export const Paper7Live = Layer.effect(Paper7)(make).pipe(
+export const Paper7Live = Layer.effect(Paper7)(makePaper7).pipe(
   Layer.provide(PaperSourceServiceLive),
   Layer.provide(ArxivServiceLive),
   Layer.provide(S2ServiceLive),

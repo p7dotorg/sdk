@@ -16,7 +16,7 @@ export class PaperSourceService extends Context.Service<PaperSourceService, Pape
   "p7/PaperSourceService"
 ) {}
 
-const make = Effect.gen(function* () {
+export const makePaperSourceService = Effect.gen(function* () {
   const arxivLayer = yield* Layer.build(ArxivPaperSourceServiceLive)
   const pubmedLayer = yield* Layer.build(PubMedPaperSourceServiceLive)
 
@@ -60,6 +60,6 @@ const make = Effect.gen(function* () {
   } satisfies PaperSourceServiceShape
 })
 
-export const PaperSourceServiceLive = Layer.effect(PaperSourceService)(make).pipe(
+export const PaperSourceServiceLive = Layer.effect(PaperSourceService)(makePaperSourceService).pipe(
   Layer.provide(Layer.mergeAll(ArxivServiceLive, PubMedServiceLive))
 )

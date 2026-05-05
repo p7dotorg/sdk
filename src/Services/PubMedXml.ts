@@ -24,6 +24,7 @@ export const parseArticleXml = Effect.fnUntraced(function* (id: string, xml: str
     Effect.flatMap((journalXml) => firstBlock(journalXml ?? "", "Title")),
     Effect.flatMap((title) => title === undefined ? firstTag(article, "ISOAbbreviation") : Effect.succeed(title)),
     Effect.flatMap(stripTags),
+    Effect.flatMap(decodeEntities),
     Effect.flatMap(cleanText),
   )
   const doi = yield* firstArticleId(article, "doi").pipe(
