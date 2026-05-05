@@ -10,7 +10,7 @@
   },
   "scripts": {
     "build": "bun build ./src/index.ts --outdir ./dist --target bun",
-    "test": "vitest run --passWithNoTests",
+    "test": "bun run --bun vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -20,6 +20,7 @@
   },
   "devDependencies": {
     "@effect/platform-node": "4.0.0-beta.58",
+    "@effect/vitest": "4.0.0-beta.58",
     "@types/bun": "latest",
     "typescript": "^5",
     "vitest": "^3.2.4"

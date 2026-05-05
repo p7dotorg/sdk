@@ -28,7 +28,7 @@ const S2CitationsResponseSchema = Schema.Struct({
 
 
 
-function s2ToPaper(s2: S2Paper, arxivId: string): Paper {
+export function s2ToPaper(s2: S2Paper, arxivId: string): Paper {
   return new Paper({
     id: arxivId,
     title: s2.title ?? "Unknown",
@@ -41,7 +41,7 @@ function s2ToPaper(s2: S2Paper, arxivId: string): Paper {
   })
 }
 
-function computeRelevance(paper: S2Paper, maxCitations: number, depth: number): number {
+export function computeRelevance(paper: S2Paper, maxCitations: number, depth: number): number {
   const citationScore = maxCitations > 0 ? (paper.citationCount ?? 0) / maxCitations : 0
   const depthPenalty = 1 / depth
   return Math.min(1, citationScore * 0.7 + depthPenalty * 0.3)
@@ -56,7 +56,7 @@ export class S2Service extends Context.Service<S2Service, S2ServiceShape>()(
   "p7/S2Service"
 ) {}
 
-const make = Effect.gen(function* () {
+export const makeS2Service = Effect.gen(function* () {
   const http = yield* HttpClient.HttpClient
 
   const fetchPaper = (arxivId: string) =>
@@ -161,6 +161,6 @@ const make = Effect.gen(function* () {
   return { buildGraph, refs } satisfies S2ServiceShape
 })
 
-export const S2ServiceLive = Layer.effect(S2Service)(make).pipe(
+export const S2ServiceLive = Layer.effect(S2Service)(makeS2Service).pipe(
   Layer.provide(FetchHttpClient.layer)
 )

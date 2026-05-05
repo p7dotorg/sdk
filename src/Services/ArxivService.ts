@@ -27,7 +27,7 @@ export class ArxivService extends Context.Service<ArxivService, ArxivServiceShap
   "p7/ArxivService"
 ) {}
 
-const make = Effect.gen(function* () {
+export const makeArxivService = Effect.gen(function* () {
   const http = yield* HttpClient.HttpClient
   const cache = yield* CacheService
   const parser = yield* ParserService
@@ -123,7 +123,7 @@ const make = Effect.gen(function* () {
   return { search, get }
 })
 
-export const ArxivServiceLive = Layer.effect(ArxivService)(make).pipe(
+export const ArxivServiceLive = Layer.effect(ArxivService)(makeArxivService).pipe(
   Layer.provide(FetchHttpClient.layer),
   Layer.provide(CacheServiceLive),
   Layer.provide(ParserServiceLive),
