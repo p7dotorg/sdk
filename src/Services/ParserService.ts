@@ -1,5 +1,5 @@
 import { Context, Effect, Layer } from "effect"
-import { parse } from "node-html-parser"
+import { parse, HTMLElement } from "node-html-parser"
 import { ParseError } from "../Domain/Errors.ts"
 
 export interface ParserServiceShape {
@@ -33,13 +33,13 @@ const make = Effect.sync((): ParserServiceShape => {
 
         const walk = (node: ReturnType<typeof parse>) => {
           for (const child of node.childNodes) {
-            const tag = "tagName" in child ? (child as any).tagName?.toLowerCase() : null
-
-            if (!tag) {
+            if (!(child instanceof HTMLElement)) {
               const text = child.text.replace(/\s+/g, " ")
               if (text.trim()) buf.push(text)
               continue
             }
+
+            const tag = child.tagName.toLowerCase()
 
             switch (tag) {
               case "h1": buf.push(`\n# ${child.text.trim()}\n`); break
@@ -57,12 +57,12 @@ const make = Effect.sync((): ParserServiceShape => {
               case "blockquote": buf.push(`\n> ${child.text.trim()}\n`); break
               case "hr":  buf.push("\n---\n"); break
               case "math": case "annotation": case "script": case "style": break
-              default: walk(child as any)
+              default: walk(child)
             }
           }
         }
 
-        walk(article as any)
+        walk(article)
 
         return buf
           .join("")

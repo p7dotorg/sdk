@@ -1,4 +1,4 @@
-import { Context, Effect, FileSystem, Layer, Option } from "effect"
+import { Context, Effect, FileSystem, Layer, Option, Schema } from "effect"
 import * as path from "path"
 import * as os from "os"
 import { CacheReadError, CacheWriteError } from "../Domain/Errors.ts"
@@ -6,14 +6,16 @@ import { BunFileSystem } from "@effect/platform-bun"
 
 const CACHE_DIR = path.join(os.homedir(), ".paper7", "cache")
 
+const MetaEntrySchema = Schema.Struct({
+  id: Schema.String,
+  title: Schema.String,
+  authors: Schema.String,
+  tldr: Schema.optional(Schema.String),
+})
+
 export interface CacheEntry {
   markdown: string
-  meta: {
-    id: string
-    title: string
-    authors: string
-    tldr?: string
-  }
+  meta: Schema.Schema.Type<typeof MetaEntrySchema>
 }
 
 export interface CacheServiceShape {
@@ -44,7 +46,7 @@ const make = Effect.gen(function* () {
         { concurrency: 2 }
       ).pipe(Effect.mapError((e) => new CacheReadError({ path: dir(id), cause: e })))
 
-      const meta = JSON.parse(metaRaw) as CacheEntry["meta"]
+      const meta = Schema.decodeUnknownSync(MetaEntrySchema)(JSON.parse(metaRaw))
       return Option.some<CacheEntry>({ markdown, meta })
     })
 
@@ -74,7 +76,12 @@ const make = Effect.gen(function* () {
       const entries = yield* Effect.all(
         ids.map((id) =>
           fs.readFileString(metaPath(id)).pipe(
-            Effect.map((raw) => JSON.parse(raw) as CacheEntry["meta"]),
+            Effect.flatMap((raw) =>
+              Effect.try({
+                try: () => Schema.decodeUnknownSync(MetaEntrySchema)(JSON.parse(raw)),
+                catch: () => Option.none<Schema.Schema.Type<typeof MetaEntrySchema>>(),
+              })
+            ),
             Effect.option
           )
         ),

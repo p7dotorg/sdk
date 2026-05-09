@@ -1,18 +1,26 @@
-import { Context, Effect, Layer, Option } from "effect"
+import { Context, Effect, Layer, Option, Schema } from "effect"
 import { HttpClient, FetchHttpClient } from "effect/unstable/http"
 import { ArxivFetchError, ArxivNotFoundError } from "../Domain/Errors.ts"
+import type { Paper7Error } from "../Domain/Errors.ts"
 import type { GetOptions, SearchOptions } from "../Domain/Paper.ts"
 import { SearchResult } from "../Domain/Paper.ts"
 import { CacheService, CacheServiceLive } from "./CacheService.ts"
+import { PaperSourceAdapter, PaperSourceContent } from "./PaperSourceAdapter.ts"
 import { ParserService, ParserServiceLive } from "./ParserService.ts"
 
 const ARXIV_API = "http://export.arxiv.org/api/query"
 const AR5IV_URL = "https://ar5iv.labs.arxiv.org/html"
 const S2_API = "https://api.semanticscholar.org/graph/v1"
 
+const TldrResponseSchema = Schema.Struct({
+  tldr: Schema.optional(Schema.Struct({
+    text: Schema.String
+  }))
+})
+
 export interface ArxivServiceShape {
-  readonly search: (query: string, opts?: SearchOptions) => Effect.Effect<ReadonlyArray<SearchResult>, any>
-  readonly get: (id: string, opts?: GetOptions) => Effect.Effect<string, any>
+  readonly search: (query: string, opts?: SearchOptions) => Effect.Effect<ReadonlyArray<SearchResult>, Paper7Error>
+  readonly get: (id: string, opts?: GetOptions) => Effect.Effect<string, Paper7Error>
 }
 
 export class ArxivService extends Context.Service<ArxivService, ArxivServiceShape>()(
@@ -27,9 +35,13 @@ const make = Effect.gen(function* () {
   const fetchTldr = (id: string) =>
     http.get(`${S2_API}/paper/arXiv:${id}?fields=tldr`).pipe(
       Effect.flatMap((r) => r.json),
-      Effect.map((data: any) => data?.tldr?.text as string | undefined),
-      Effect.option,
-      Effect.map((o) => (Option.isSome(o) ? o.value : undefined)),
+      Effect.flatMap((json) =>
+        Effect.try({
+          try: () => Schema.decodeUnknownSync(TldrResponseSchema)(json),
+          catch: () => new ArxivFetchError({ id, status: 0 }),
+        })
+      ),
+      Effect.map((parsed) => parsed.tldr?.text),
       Effect.orElseSucceed(() => undefined as string | undefined)
     )
 
@@ -116,3 +128,14 @@ export const ArxivServiceLive = Layer.effect(ArxivService)(make).pipe(
   Layer.provide(CacheServiceLive),
   Layer.provide(ParserServiceLive),
 )
+
+export const ArxivPaperSourceServiceLive = Layer.effect(PaperSourceAdapter)(Effect.gen(function* () {
+  const arxiv = yield* ArxivService
+
+  return {
+    search: (query: string, opts?: SearchOptions) => arxiv.search(query, opts),
+    get: (id: string, opts?: GetOptions) => arxiv.get(id, opts).pipe(
+      Effect.map((markdown) => PaperSourceContent.Markdown({ markdown }))
+    ),
+  }
+}))

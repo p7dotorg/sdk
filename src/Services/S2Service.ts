@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect"
+import { Context, Effect, Layer, Schema } from "effect"
 import { HttpClient, FetchHttpClient } from "effect/unstable/http"
 import { S2FetchError } from "../Domain/Errors.ts"
 import { Paper, PaperEdge, PaperGraph, PaperNode } from "../Domain/Paper.ts"
@@ -6,15 +6,27 @@ import { Paper, PaperEdge, PaperGraph, PaperNode } from "../Domain/Paper.ts"
 const S2_API = "https://api.semanticscholar.org/graph/v1"
 const FIELDS = "title,authors,year,abstract,citationCount,externalIds"
 
-interface S2Paper {
-  paperId: string
-  title: string
-  authors?: Array<{ name: string }>
-  abstract?: string
-  year?: number
-  citationCount?: number
-  externalIds?: { ArXiv?: string }
-}
+const S2PaperSchema = Schema.Struct({
+  paperId: Schema.String,
+  title: Schema.NullOr(Schema.String),
+  authors: Schema.NullOr(Schema.Array(Schema.Struct({ name: Schema.String }))),
+  abstract: Schema.NullOr(Schema.String),
+  year: Schema.NullOr(Schema.Number),
+  citationCount: Schema.NullOr(Schema.Number),
+  externalIds: Schema.NullOr(Schema.Struct({ ArXiv: Schema.optional(Schema.String) })),
+})
+type S2Paper = typeof S2PaperSchema.Type
+
+const S2RefsResponseSchema = Schema.Struct({
+  data: Schema.optional(Schema.Array(Schema.Struct({ citedPaper: S2PaperSchema }))),
+})
+
+const S2CitationsResponseSchema = Schema.Struct({
+  data: Schema.optional(Schema.Array(Schema.Struct({ citingPaper: S2PaperSchema }))),
+})
+
+
+
 
 function s2ToPaper(s2: S2Paper, arxivId: string): Paper {
   return new Paper({
@@ -24,8 +36,8 @@ function s2ToPaper(s2: S2Paper, arxivId: string): Paper {
     abstract: s2.abstract ?? "",
     source: "arxiv",
     url: `https://arxiv.org/abs/${arxivId}`,
-    year: s2.year,
-    citationCount: s2.citationCount,
+    year: s2.year ?? undefined,
+    citationCount: s2.citationCount ?? undefined,
   })
 }
 
@@ -51,21 +63,38 @@ const make = Effect.gen(function* () {
     http.get(`${S2_API}/paper/arXiv:${arxivId}?fields=${FIELDS}`).pipe(
       Effect.flatMap((r) => r.json),
       Effect.mapError(() => new S2FetchError({ id: arxivId })),
-      Effect.map((data: any) => data as S2Paper)
+      Effect.flatMap((json) =>
+        Effect.try({
+          try: () => Schema.decodeUnknownSync(S2PaperSchema)(json),
+          catch: () => new S2FetchError({ id: arxivId, cause: "invalid S2 paper JSON" }),
+        })
+      ),
     )
 
   const fetchRefs = (arxivId: string) =>
     http.get(`${S2_API}/paper/arXiv:${arxivId}/references?fields=${FIELDS}&limit=50`).pipe(
       Effect.flatMap((r) => r.json),
       Effect.mapError(() => new S2FetchError({ id: arxivId })),
-      Effect.map((data: any) => (data?.data ?? []) as Array<{ citedPaper: S2Paper }>)
+      Effect.flatMap((json) =>
+        Effect.try({
+          try: () => Schema.decodeUnknownSync(S2RefsResponseSchema)(json),
+          catch: () => new S2FetchError({ id: arxivId, cause: "invalid S2 refs JSON" }),
+        })
+      ),
+      Effect.map((parsed) => parsed.data ?? []),
     )
 
   const fetchCitations = (arxivId: string) =>
     http.get(`${S2_API}/paper/arXiv:${arxivId}/citations?fields=${FIELDS}&limit=50`).pipe(
       Effect.flatMap((r) => r.json),
       Effect.mapError(() => new S2FetchError({ id: arxivId })),
-      Effect.map((data: any) => (data?.data ?? []) as Array<{ citingPaper: S2Paper }>)
+      Effect.flatMap((json) =>
+        Effect.try({
+          try: () => Schema.decodeUnknownSync(S2CitationsResponseSchema)(json),
+          catch: () => new S2FetchError({ id: arxivId, cause: "invalid S2 citations JSON" }),
+        })
+      ),
+      Effect.map((parsed) => parsed.data ?? []),
     )
 
   const buildGraph = (seedArxivId: string, _depth = 1) =>
@@ -77,6 +106,11 @@ const make = Effect.gen(function* () {
         Effect.orElseSucceed((): S2Paper => ({
           paperId: seedArxivId,
           title: refsData[0]?.citedPaper?.title ?? seedArxivId,
+          authors: null,
+          abstract: null,
+          year: null,
+          citationCount: null,
+          externalIds: null,
         }))
       )
 
@@ -85,8 +119,8 @@ const make = Effect.gen(function* () {
       const edges: PaperEdge[] = []
 
       const allCitations = [
-        ...refsData.map((r) => r.citedPaper.citationCount ?? 0),
-        ...citationsData.map((c) => c.citingPaper.citationCount ?? 0),
+        ...refsData.map((r: { citedPaper: S2Paper }) => r.citedPaper.citationCount ?? 0),
+        ...citationsData.map((c: { citingPaper: S2Paper }) => c.citingPaper.citationCount ?? 0),
       ]
       const maxCitations = Math.max(1, ...allCitations)
 
@@ -117,7 +151,7 @@ const make = Effect.gen(function* () {
 
   const refs = (arxivId: string) =>
     fetchRefs(arxivId).pipe(
-      Effect.map((data) =>
+      Effect.map((data: ReadonlyArray<{ citedPaper: S2Paper }>) =>
         data
           .filter((r) => r.citedPaper.externalIds?.ArXiv)
           .map((r) => s2ToPaper(r.citedPaper, r.citedPaper.externalIds!.ArXiv!))
